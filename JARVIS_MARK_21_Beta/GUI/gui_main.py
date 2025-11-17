@@ -5,6 +5,7 @@ from tkinter import scrolledtext,END
 from PIL import Image, ImageTk, ImageSequence  # Only for avatar file check
 #from voice.tts import speak
 from voice.stt import threaded_listen_and_respond
+from voice.wake_word import start_wake_listener, stop_wake_listener, set_wake_callback
 import threading
 from core.commands import process_command
 from core.memory import load_memory,conversation_history, load_conversation_history, save_conversation_history
@@ -837,6 +838,7 @@ def launch_gui():
     def on_closing():
         save_conversation_history()
         stop_wake_word_listener()  # Stop background listener if running
+        stop_wake_listener()  # Stop voice wake word listener
         root.destroy()
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -863,9 +865,22 @@ def launch_gui():
     floating_mic = FloatingMic(output_text)
     floating_mic.show()
     print("showing mic\n")
-        
-        
-        
+    
+    # Start voice wake word listener
+    def wake_callback():
+        """Callback when wake word is detected"""
+        print("[WAKE] Opening JARVIS window!")
+        root.deiconify()  # Show window if hidden
+        root.lift()  # Bring to front
+        root.attributes('-topmost', True)  # Focus on top
+        threading.Thread(target=lambda: root.attributes('-topmost', False), daemon=True).start()
+    
+    try:
+        set_wake_callback(wake_callback)
+        start_wake_listener(wake_callback)
+        print("[STARTUP] Voice wake word listener initialized (say 'Hey Jarvis')")
+    except Exception as e:
+        print(f"[STARTUP] Could not start wake word listener: {e}")
         
     return root
     #app.mainloop() # Start the GUI loop

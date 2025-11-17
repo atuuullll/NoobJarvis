@@ -126,23 +126,43 @@ def detect_language_smart(text):
 def listen_and_respond(output_text):
     try:
         with sr.Microphone() as source:
-            recognizer.adjust_for_ambient_noise(source)
-            output_text.insert("end", "🎤 Listening...\n")
+            # Better microphone setup for clearer audio
+            recognizer.energy_threshold = 4000  # More sensitive
+            recognizer.dynamic_energy_threshold = True
+            recognizer.adjust_for_ambient_noise(source, duration=1)
+            
+            output_text.insert("end", "[LISTENING] Speak your command clearly...\n")
             output_text.see("end")
-            audio = recognizer.listen(source)
+            
+            # Listen with longer phrase time
+            audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
+            output_text.insert("end", "[PROCESSING] Recognizing your voice...\n")
+            output_text.see("end")
 
-            command = recognizer.recognize_google(audio)
+            command = recognizer.recognize_google(audio, language='en-US')
             
             #detect language
-            print(f"🎤 Heard: {command}")
+            print(f"[VOICE] Heard: {command}")
             
             #language = detect(command)
             language = detect_language_smart(command)
-            print(f"🔍 Detected Language: {language}")
+            print(f"[LANGUAGE] Detected: {language}")
 
             # Process based on detected language
             process_command(command, output_text, language)
 
+    except sr.UnknownValueError:
+        error_msg = "Sorry, I didn't catch that. Please speak clearly."
+        output_text.insert("end", f"[ERROR] {error_msg}\n")
+        output_text.see("end")
+        print("[ERROR] Could not understand audio")
+        speak(error_msg, lang='en')
+    except sr.RequestError as e:
+        error_msg = f"Network error: {e}"
+        output_text.insert("end", f"[ERROR] {error_msg}\n")
+        output_text.see("end")
+        print(f"[ERROR] {error_msg}")
+        speak("Network error, please try again", lang='en')
     except Exception as e:
         error_msg = "⚠️ Sorry, I couldn't process that."
         output_text.insert("end", f"{error_msg}\n")
@@ -168,26 +188,38 @@ def start_wake_word_listener(output_text, mode_flag_func):
 
             try:
                 with sr.Microphone() as source:
-                    recognizer.adjust_for_ambient_noise(source)
-                    print("👂Listening for wake word...")
+                    recognizer.energy_threshold = 4000  # More sensitive
+                    recognizer.dynamic_energy_threshold = True
+                    recognizer.adjust_for_ambient_noise(source, duration=1)
+                    
+                    print("[WAKE] Listening for wake word...")
                     audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
 
-                said = recognizer.recognize_google(audio).lower()
-                print("Heard:", said)
+                    said = recognizer.recognize_google(audio, language='en-US').lower()
+                    print(f"[WAKE] Heard: {said}")
 
-                if wake_word in said:
-                    speak("Yes SIR?", lang='en')
-                    with sr.Microphone() as source:
-                        output_text.insert("end", "🎤 Awaiting your command...\n")
-                        output_text.see("end")
-                        command_audio = recognizer.listen(source, timeout=5)
-                        command = recognizer.recognize_google(command_audio)
-                        language = detect(command)
-                        print(f"🔍 Detected Language: {language}")
-                        process_command(command, output_text, language)
+                    if "jarvis" in said or "hey jarvis" in said:
+                        speak("Yes, I'm listening!", lang='en')
+                        print("[WAKE] Wake word detected! Awaiting command...")
+                        
+                        with sr.Microphone() as source:
+                            output_text.insert("end", "[LISTENING] Say your command now...\n")
+                            output_text.see("end")
+                            recognizer.adjust_for_ambient_noise(source, duration=1)
+                            command_audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
+                            command = recognizer.recognize_google(command_audio, language='en-US')
+                            language = detect_language_smart(command)
+                            print(f"[COMMAND] {command} | [LANGUAGE] {language}")
+                            process_command(command, output_text, language)
 
+            except sr.UnknownValueError:
+                print("[WAKE] Could not understand audio")
+                time.sleep(1)
+            except sr.RequestError as e:
+                print(f"[WAKE] Network error: {e}")
+                time.sleep(2)
             except Exception as e:
-                print("Wake listener error:", e)
+                print(f"[WAKE] Error: {e}")
                 time.sleep(2)
 
     threading.Thread(target=listen_loop, daemon=True).start()
