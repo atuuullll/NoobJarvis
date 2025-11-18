@@ -7,6 +7,7 @@ import tkinter as tk
 from features.notes import add_note, delete_note, load_notes
 from features.reminders import add_reminder, load_reminders, save_reminders
 from features.music import load_music_from, play_music, pause_music, resume_music, stop_music, next_song, shuffle_music
+from features.window_control import open_application, close_application
 from voice.tts import speak
 from api.gemini import model
 from core.memory import conversation_history, remember, recall,load_memory
@@ -202,6 +203,35 @@ def process_command(command, output_text, language="en"):
         shuffle_music()
         reply = "Shuffling and playing music."
 
+    # ===== WINDOW/APPLICATION CONTROL =====
+    elif "open" in command:
+        # Extract app name more carefully
+        app_name = None
+        for keyword in ["open ", "launch ", "start "]:
+            if keyword in command:
+                app_name = command.split(keyword, 1)[1].strip()
+                break
+        
+        if app_name:
+            success, message = open_application(app_name)
+            reply = message if success else f"Could not open {app_name}. {message}"
+        else:
+            reply = "Please specify which application to open."
+
+    elif "close" in command or "shut" in command or "kill" in command:
+        # Extract app name more carefully
+        app_name = None
+        for keyword in ["close ", "shut ", "kill "]:
+            if keyword in command:
+                app_name = command.split(keyword, 1)[1].strip()
+                break
+        
+        if app_name:
+            success, message = close_application(app_name)
+            reply = message
+        else:
+            reply = "Please specify which application to close."
+
     elif "show chat history" in command:
         if conversation_history:
             reply = "\n".join([f"You: {item['user']}\nJarvis: {item['jarvis']}" for item in conversation_history])
@@ -391,12 +421,15 @@ def process_command(command, output_text, language="en"):
         from core.config import toggle_tts, is_tts_enabled
         if is_tts_enabled():
             toggle_tts()
-            reply = "✅ Voice disabled. I won’t speak until you tell me to enable it again."
+            reply = "✅ Voice disabled. I won't speak until you tell me to enable it again."
         else:
             reply = "Voice is already off."
-            
-        from GUI.gui_main import sync_tts_switch 
-        output_text.after(0, sync_tts_switch)
+        
+        try:
+            from GUI.gui_main import sync_tts_switch 
+            output_text.after(0, sync_tts_switch)
+        except:
+            pass
 
     elif any(phrase in command for phrase in ["enable tts", "turn on tts", "enable voice"]):
         from core.config import toggle_tts, is_tts_enabled
@@ -405,9 +438,12 @@ def process_command(command, output_text, language="en"):
             reply = "✅ Voice enabled. I will speak again."
         else:
             reply = "Voice is already on."
-            
-        from GUI.gui_main import sync_tts_switch
-        output_text.after(0, sync_tts_switch)
+        
+        try:
+            from GUI.gui_main import sync_tts_switch
+            output_text.after(0, sync_tts_switch)
+        except:
+            pass
 
         
     elif "show loading spinner" in command.lower():
@@ -473,17 +509,72 @@ def process_command(command, output_text, language="en"):
         reply = "Opening LinkedIn..."
         
         threading.Thread (target=lambda: webbrowser.open("https://www.linkedin.com"),daemon=True).start()
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+    # ===== TIME AND DATE COMMANDS =====
+    elif any(phrase in command for phrase in ["what time is it", "what's the time", "tell me the time", "current time", "what time"]):
+        current_time = datetime.now().strftime("%I:%M %p")
+        reply = f"The current time is {current_time}."
+
+    elif any(phrase in command for phrase in ["what date", "today's date", "what's today's date", "tell me the date", "current date", "what is today"]):
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        reply = f"Today's date is {current_date}."
+
+    elif any(phrase in command for phrase in ["what day", "what day is today", "what day of the week"]):
+        day = datetime.now().strftime("%A")
+        reply = f"Today is {day}."
+
+    elif "how many days until" in command or "days until" in command:
+        # Extract target date info (simple handling)
+        reply = "I can help with that, but I need the specific date. Please tell me the date in a format like 'December 25' or ask me something else."
+
+    # ===== IMPROVED PHRASE MATCHING FOR COMMON QUERIES =====
+    elif any(phrase in command for phrase in ["how are you", "how you doing", "how's it going", "sup jarvis"]):
+        replies = [
+            "I'm functioning perfectly! Ready to help you out.",
+            "All systems operational and ready to assist!",
+            "I'm doing great! Thanks for asking.",
+            "Ready and eager to serve you!"
+        ]
+        import random
+        reply = random.choice(replies)
+
+    elif any(phrase in command for phrase in ["what is your name", "who are you", "your name", "tell me your name"]):
+        reply = "I'm J.A.R.V.I.S., your personal AI assistant. Made by Atul Kumar Rawat."
+
+    elif any(phrase in command for phrase in ["who made you", "who created you", "who developed you", "your creator"]):
+        reply = "I was created by Atul Kumar Rawat. I'm the J.A.R.V.I.S. AI Assistant."
+
+    elif any(phrase in command for phrase in ["thanks", "thank you", "thankyou", "appreciate it"]):
+        replies = [
+            "You're welcome! Happy to help.",
+            "Anytime! That's what I'm here for.",
+            "My pleasure! Let me know if you need anything else.",
+            "Thank you! Glad I could assist."
+        ]
+        import random
+        reply = random.choice(replies)
+
+    elif any(phrase in command for phrase in ["joke", "tell me a joke", "make me laugh", "funny"]):
+        replies = [
+            "Why did the AI go to school? To improve its learning algorithms! I know, I know, I'm hilarious.",
+            "What do you call an AI that tells jokes? Artificial Intelligence? No, just artificial humor.",
+            "I'd tell you a programming joke, but I'm afraid it wouldn't compile with you.",
+            "Why do programmers prefer dark mode? Because light attracts bugs!"
+        ]
+        import random
+        reply = random.choice(replies)
+
+    elif any(phrase in command for phrase in ["hello jarvis", "hi jarvis", "hey there", "hey"]):
+        replies = [
+            "Hello! What can I do for you today?",
+            "Hi there! How can I assist you?",
+            "Greetings! Ready to help.",
+            "Hello! What's on your mind?"
+        ]
+        import random
+        reply = random.choice(replies)
+
+    # ===== UNCLEAR/FALLBACK COMMAND HANDLING =====
        
     else:
         def handle_gemini_command(prompt):

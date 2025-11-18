@@ -843,7 +843,8 @@ def launch_gui():
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
     
-    start_wake_word_listener(output_text, lambda: wake_word_mode) #starts the wake word listner in a separate thread
+    # NOTE: Using new voice/wake_word.py listener instead of old STT listener
+    # start_wake_word_listener(output_text, lambda: wake_word_mode) #disabled - using voice/wake_word.py
     rgb_cycle()# Start the RGB animation loop
 
     update_uptime()# Start the uptime update loop

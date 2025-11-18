@@ -101,48 +101,69 @@ from tkinter import font
 import tkinter as tk
 
 def type_and_speak_text(output_widget, text, language="en", min_delay=0.005, max_delay=0.05):
-    # Step 1: Clean version for TTS (remove markdown formatting)
-    spoken_text = re.sub(r"\*(.*?)\*", r"\1", text)
-    
-    # Step 2: Speak the text in a background thread
-    threading.Thread(target=lambda: speak(spoken_text, language), daemon=True).start()
-
-    # Step 3: Prepare bold font tag
     try:
-        output_widget.tag_cget("bold", "font")
-    except tk.TclError:
-        bold_font = font.Font(output_widget, output_widget.cget("font"))
-        bold_font.configure(weight="bold")
-        output_widget.tag_configure("bold", font=bold_font)
+        # Check if widget still exists
+        if not output_widget.winfo_exists():
+            print("[ERROR] Output widget no longer exists")
+            return
+        
+        # Step 1: Clean version for TTS (remove markdown formatting)
+        spoken_text = re.sub(r"\*(.*?)\*", r"\1", text)
+        
+        # Step 2: Speak the text in a background thread
+        threading.Thread(target=lambda: speak(spoken_text, language), daemon=True).start()
 
-    # Step 4: Typing animation with bold logic
-    output_widget.configure(state="normal")
-    output_widget.insert("end", "🤖 Jarvis: ")
-    output_widget.update()
+        # Step 3: Prepare bold font tag
+        try:
+            output_widget.tag_cget("bold", "font")
+        except (tk.TclError, AttributeError):
+            try:
+                bold_font = font.Font(output_widget, output_widget.cget("font"))
+                bold_font.configure(weight="bold")
+                output_widget.tag_configure("bold", font=bold_font)
+            except:
+                pass  # If font setup fails, continue without bold
 
-    index = 0
-    while index < len(text):
-        if text[index] == "*":
-            end_index = text.find("*", index + 1)
-            if end_index != -1:
-                bold_text = text[index + 1:end_index]
-                for char in bold_text:
-                    output_widget.insert("end", char, "bold")
-                    output_widget.see("end")
-                    output_widget.update()
-                    time.sleep(random.uniform(min_delay, max_delay))
-                index = end_index + 1
-                continue
+        # Step 4: Typing animation with bold logic
+        try:
+            output_widget.configure(state="normal")
+            output_widget.insert("end", "[JARVIS] ")
+            output_widget.update()
 
-        output_widget.insert("end", text[index])
-        output_widget.see("end")
-        output_widget.update()
-        time.sleep(random.uniform(min_delay, max_delay))
-        index += 1
+            index = 0
+            while index < len(text):
+                # Check if widget still exists
+                if not output_widget.winfo_exists():
+                    break
+                
+                if text[index] == "*":
+                    end_index = text.find("*", index + 1)
+                    if end_index != -1:
+                        bold_text = text[index + 1:end_index]
+                        for char in bold_text:
+                            if not output_widget.winfo_exists():
+                                break
+                            output_widget.insert("end", char, "bold")
+                            output_widget.see("end")
+                            output_widget.update()
+                            time.sleep(random.uniform(min_delay, max_delay))
+                        index = end_index + 1
+                        continue
 
-    output_widget.insert("end", "\n\n")
-    output_widget.see("end")
-    output_widget.configure(state="disabled")
+                output_widget.insert("end", text[index])
+                output_widget.see("end")
+                output_widget.update()
+                time.sleep(random.uniform(min_delay, max_delay))
+                index += 1
+
+            output_widget.insert("end", "\n\n")
+            output_widget.see("end")
+            output_widget.configure(state="disabled")
+        except (tk.TclError, AttributeError) as e:
+            print(f"[ERROR] Widget display error: {e}")
+            
+    except Exception as e:
+        print(f"[ERROR] type_and_speak_text error: {e}")
 
 
 
